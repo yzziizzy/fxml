@@ -1,0 +1,25 @@
+
+
+
+<root>
+	garbage
+	
+	<child>
+		toys
+		
+	</child>
+	
+	<brother>
+		cars
+	</brother>
+	
+	<sister>
+		dolls
+	</sister>
+	
+	<brother>
+		legos
+	</brother>
+	
+	
+</root>
