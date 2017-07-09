@@ -71,20 +71,20 @@ int fxmlTagParseName(FXMLTag* t) {
 	}
 	
 	s++; // skip bracket
-	
+
 	// TODO: skip shitespace?
 	
-	end = strpbrk(s, " \n\r\t\v");
+	end = strpbrk(s, " \n\r\t\v>");
 	
 	if(!end) {
 		fprintf(stderr, "FXML: could not find end of tag name.\n");
 		return 2;
 	}
 	
-	t->name_len = end - s - 1; // TODO check for off-by-one
+	t->name_len = end - s; // TODO check for off-by-one
 	t->name = strndup(s, t->name_len);
 	
-	printf("tag name: '%s'\n", t->name);
+	//dbg_printf("tag name: '%s'\n", t->name);
 	
 	// might as well
 	fxmlTagFindStartOfContent(t);
@@ -151,7 +151,6 @@ FXMLTag* fxmlTagFindEndOfContent(FXMLTag* t) {
 	// skip all the children, recursively
 	while(*s) { // BUG need better bounds checking
 		int ctype;
-		dbg_printf("find eoc loop: %.5s", t->name)
 		
 		fxmlFindNextTagStart(&s);
 		
@@ -166,7 +165,8 @@ FXMLTag* fxmlTagFindEndOfContent(FXMLTag* t) {
 			
 			return;
 		}
-		
+		//fxmlSkipTagDecl(&s);
+		fxmlSkipTag(&s);
 		// keep going; more children to skip
 	}
 	
@@ -192,7 +192,7 @@ void fxmlDecodeCDATA(char** in, char** out) {
 	char* e;
 	
 	// just in case
-	if(0 != strcmp(s, "<![CDATA[")) {
+	if(0 != strncmp(s, "<![CDATA[", strlen("<![CDATA["))) {
 		fprintf(stderr, "FXML: cannot parse non CDATA tag as CDATA.\n");
 		return;
 	}
@@ -250,7 +250,7 @@ char* fxmlGetTextContents(FXMLTag* t, size_t* len) {
 // expects the char after the attr name
 static char* extractAttrValue(char* start) {
 	char* s = start;
-	char* e, *out;
+	char* e, *out, *o;
 	char quote;
 	
 	//look for the next useful token
@@ -259,11 +259,10 @@ static char* extractAttrValue(char* start) {
 		fprintf(stderr, "FXML: malformed attribute lacks equals sign.\n");
 		return strdup(""); // good enough
 	}
-	
 	s++;
 	skipWhitespace(&s);
 	
-	if(*s != '"' || *s != '\'') {
+	if(*s != '"' && *s != '\'') {
 		fprintf(stderr, "FXML: malformed attribute lacks quotes.\n");
 		return strdup(""); // good enough
 	}
@@ -272,8 +271,8 @@ static char* extractAttrValue(char* start) {
 	s++;
 	
 	e = strchr(s, quote);
-	
-	out = malloc(e - s + 1);
+
+	out = o = malloc(e - s + 1);
 	if(!out) {
 		fprintf(stderr, "FXML: OOM in extractAttrValue.\n");
 		exit(1);
@@ -283,14 +282,13 @@ static char* extractAttrValue(char* start) {
 	// decode the attr
 	while(s < e) {
 		if(*s == '&') {
-			fxmlDecodeEntity(&s, &out);
+			fxmlDecodeEntity(&s, &o);
 		}
 		else {
-			*out++ = *s++;
+			*o++ = *s++;
 		}
 	}
-	
-	*out = 0;
+	*o = 0;
 	
 	
 	return out;
@@ -303,15 +301,16 @@ static char* findNextAttr(char* start) {
 	
 	//look for the next useful token
 	skipWhitespace(&s);
+
 	if(*s != '=') {
 		fprintf(stderr, "FXML: malformed attribute lacks equals sign.\n");
 		return s; // good enough
 	}
-	
-	s++;
+
+	s++; 
 	skipWhitespace(&s);
-	
-	if(*s != '"' || *s != '\'') {
+
+	if(*s != '"' && *s != '\'') {
 		fprintf(stderr, "FXML: malformed attribute lacks quotes.\n");
 		return s; // good enough
 	}
@@ -378,23 +377,21 @@ FXMLTag* fxmlTagFindFirstChild(FXMLTag* t, char* name) {
 	c = fxmlTagGetFirstChild(t);
 	
 	while(c && 0 != strcmp(c->name, name)) {
-		dbg_printf("name: %s \n", c->name);
 		
 		o = c;
 		c = fxmlTagNextSibling(c);
 		fxmlTagDestroy(o);
 		free(o);
 	}
-	dbg_printf("ended\n");
+
 	return c;
 }
 
 // fetches the next sibling, ignoring all contents of this tag and any text between
 FXMLTag* fxmlTagNextSibling(FXMLTag* t) {
 	char* s;
-	dbg_printf("before eoc");
+
 	fxmlTagFindEndOfContent(t);
-	dbg_printf("eoc")
 	s = t->end;
 	
 	if(!t->parent) {
@@ -420,14 +417,12 @@ FXMLTag* fxmlTagFindNextSibling(FXMLTag* t, char* name) {
 	c = t;
 	
 	while(c && 0 != strcmp(c->name, name)) {
-		dbg_printf("name: %s \n", c->name);
-		
 		o = c;
 		c = fxmlTagNextSibling(c);
 		fxmlTagDestroy(o);
 		free(o);
 	}
-	dbg_printf("ended\n");
+
 	return c;
 }
 
@@ -453,7 +448,7 @@ int fxmlProbeTagType(char* start) {
 		case '!':
 			if(*(start+2) == '-' && *(start+3) == '-') //BUG might read past end of input. eh, you get what you deserve feeding in bad files.
 				return FXML_TAG_COMMENT;
-			else if(strcmp(start+1, "![CDATA[") == 0)
+			else if(strncmp(start+1, "![CDATA[", strlen("![CDATA[")) == 0)
 				return FXML_TAG_CDATA;
 			else
 				return FXML_TAG_BANG;
@@ -541,21 +536,22 @@ void fxmlSkipTag(char** start) {
 		*start = s + 4;
 		return;
 	}
-	
+
 	// skip the opening tag
 	fxmlSkipTagDecl(&s);
-	
+
 	// skip all the children, recursively
 	while(*s) { // BUG need better bounds checking
 		int ctype;
 		
 		
 		fxmlFindNextTagStart(&s);
-		
+		//dbg_printf("skip %.5s", s);
 		// found it
 		if(fxmlIsCloseTagFor(s, name)) {
 			fxmlSkipTagDecl(&s);
 			*start = s;
+			//dbg_printf("skip %.5s", s);
 			return;
 		}
 		
@@ -574,7 +570,7 @@ int fxmlIsCloseTagFor(char* s, char* name) {
 	
 	// not a closing tag at all
 	if(*(s+1) != '/') return 0;
-	dbg_printf("%.5s, %.5s", s+2,name)
+
 	if(strncmp(s+2, name, strlen(name)) == 0) return 1;
 	
 	return 0;
@@ -596,7 +592,7 @@ void fxmlFindNextTagStart(char** start) {
 void fxmlFindNextNormalTagStart(char** start) {
 	char* s = *start;
 	
-	while(*s) { dbg_printf("looping");
+	while(*s) {
 		int type;
 		
 		fxmlFindNextTagStart(&s);

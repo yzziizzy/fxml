@@ -6,18 +6,18 @@
 	
 	<child>
 		toys
-		
+		<![CDATA[>ad<asd>as\saa<asd]]>
 	</child>
 	
-	<brother>
+	<brother name="steve">
 		cars
 	</brother>
 	
-	<sister>
+	<sister name="anna" age="3" height="3'2&quot;">
 		dolls
 	</sister>
 	
-	<brother>
+	<brother name="joe">
 		legos
 	</brother>
 	

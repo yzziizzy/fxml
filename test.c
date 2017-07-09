@@ -11,7 +11,7 @@
 int main(int argc, char* argv[]) {
 	
 	FXMLTag* root, *child, *bro, *sis, *bro2;
-	
+	char* bro2name, *sisht;
 	
 	
 	root = fxmlLoadFile("./sample.xml");
@@ -23,10 +23,13 @@ int main(int argc, char* argv[]) {
 	printf("got first brother: %s \n", bro->name);
 	
 	sis = fxmlTagNextSibling(bro);
-	printf("got brother's next sibling (sister): %s \n", sis->name);
+	sisht = fxmlGetAttr(sis, "height");
+	printf("got brother's next sibling (sister): %s height: %s\n", sis->name, sisht);
 	
 	bro2 = fxmlTagFindNextSibling(bro, "brother");
-	printf("got brother's next brother: %s \n", bro2->name);
+	bro2name = fxmlGetAttr(bro2, "name");
+	printf("got brother's next brother: %s name: %s\n", bro2->name, bro2name);
+	
 	
 	fxmlTagDestroy(root);
 	free(root);
