@@ -139,7 +139,7 @@ void fxmlTagFindStartOfContent(FXMLTag* t) {
 	t->content_start = s + 1;
 }
 
-FXMLTag* fxmlTagFindEndOfContent(FXMLTag* t) {
+void fxmlTagFindEndOfContent(FXMLTag* t) {
 	char* s = t->content_start;
 	
 	if(t->fully_parsed) return;
@@ -197,9 +197,9 @@ void fxmlDecodeCDATA(char** in, char** out) {
 		return;
 	}
 	
-	s += strlen("<!CDATA[");
-	
+	s += strlen("<!CDATA[") + 1;
 	e = strstr(s, "]]>");
+	
 	if(!e) {
 		fprintf(stderr, "FXML: unexpected end of input in fxmlDecodeCDATA.\n");
 		return;
@@ -208,7 +208,7 @@ void fxmlDecodeCDATA(char** in, char** out) {
 	strncpy(*out, s, e - s);
 	
 	*out += e - s;
-	*in += e - s + strlen("]]>");
+	*in = e + strlen("]]>");
 }
 
 
@@ -216,35 +216,40 @@ void fxmlDecodeCDATA(char** in, char** out) {
 char* fxmlGetTextContents(FXMLTag* t, size_t* len) {
 	
 	char* in = t->content_start;
-	char* buf, *out;
+	char* out, *o;
 	size_t buflen;
+	
+	fxmlTagFindEndOfContent(t);
 	
 	// allocate too much, shink later
 	buflen = t->content_end - t->content_start;
-	buf = out = malloc(buflen + 1);
+	out = o = malloc(buflen + 1);
 	
 	while(in < t->content_end) {
 		int ctype;
 		
 		if(*in == '&') {
-			fxmlDecodeEntity(&in, &out);
+			fxmlDecodeEntity(&in, &o);
 		}
 		else if(*in == '<') {
 			ctype = fxmlProbeTagType(in);
 			if(ctype == FXML_TAG_CDATA) {
-				fxmlDecodeCDATA(&in, &out);
+				fxmlDecodeCDATA(&in, &o);
 			} 
 			else {
 				fxmlSkipTag(&in);
 			}
 		}
 		else {
-			*out++ = *in++;
+			*o++ = *in++;
 		}
 	}
 	
-	*out = 0;
+	*o = 0;
 	
+	if(len) *len = o - out;
+	
+	return out;
 }
 
 // expects the char after the attr name
@@ -436,7 +441,7 @@ FXMLTag* fxmlTagFindNextSibling(FXMLTag* t, char* name) {
 // determine what kind of tag this is
 int fxmlProbeTagType(char* start) {
 	if(*start != '<') {
-		fprintf(stderr, "FXML: expected < in fxmlProbeTagType.\n");
+		fprintf(stderr, "FXML: expected < in fxmlProbeTagType, got '%.5s'\n", start);
 		return FXML_TAG_UNKNOWN;
 	}
 	
@@ -537,6 +542,25 @@ void fxmlSkipTag(char** start) {
 		return;
 	}
 
+	// hopefully these SOB's don't nest. too lazy to look it up.
+	if(type == FXML_TAG_QUEST || type == FXML_TAG_BANG) {
+		if(type == FXML_TAG_BANG) endstr = "]>";
+		else endstr = "?>";
+		
+		s = strstr(*start, endstr);
+		if(!s) {
+			fprintf(stderr, "FXML: unexpected end of input in fxmlSkipTag.\n");
+			*start = NULL;
+			return;
+		}
+		
+		// convenient that the end sequences are the same length
+		*start = s + 3;
+		return;
+	}
+	
+	
+
 	// skip the opening tag
 	fxmlSkipTagDecl(&s);
 
@@ -614,9 +638,9 @@ char* fxmlFindRoot(char* source) {
 	int type;
 	char* s = source;
 	
-	skipWhitespace(&s);
-	
 	while(*s) {
+		skipWhitespace(&s);
+		
 		type = fxmlProbeTagType(s);
 		
 		// found it

@@ -11,13 +11,16 @@
 int main(int argc, char* argv[]) {
 	
 	FXMLTag* root, *child, *bro, *sis, *bro2;
-	char* bro2name, *sisht;
+	char* bro2name, *sisht, *cont;
 	
 	
 	root = fxmlLoadFile("./sample.xml");
 	
 	child = fxmlTagGetFirstChild(root);
 	printf("got first child: %s \n", child->name);
+	
+	cont = fxmlGetTextContents(child, NULL);
+	printf("child text contents: %s\n", cont);
 	
 	bro = fxmlTagFindFirstChild(root, "brother");
 	printf("got first brother: %s \n", bro->name);

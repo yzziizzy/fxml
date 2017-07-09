@@ -83,7 +83,7 @@ FXMLTag* fxmlTagDestroy(FXMLTag* t);
 // mostly internal use. all have guards to shortcut redundant calls.
 static int fxmlTagParseName(FXMLTag* t);
 void fxmlTagFindStartOfContent(FXMLTag* t);
-FXMLTag* fxmlTagFindEndOfContent(FXMLTag* t);
+void fxmlTagFindEndOfContent(FXMLTag* t);
 
 
 

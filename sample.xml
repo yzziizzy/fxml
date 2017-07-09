@@ -1,13 +1,20 @@
+<?xml version="1.0" standalone="yes" ?>
 
+<!--comments -->
+<!DOCTYPE crap [ 
+	stupid
+]> 
 
 
 <root>
 	garbage
 	
 	<child>
-		toys
+		toys <!-- comments in  text --> sdfsdfs
 		<![CDATA[>ad<asd>as\saa<asd]]>
 	</child>
+	
+	<!-- more comments -->
 	
 	<brother name="steve">
 		cars
