@@ -355,6 +355,34 @@ char* fxmlGetAttr(FXMLTag* t, char* name) {
 	fprintf(stderr, "FXML: unexpected end of input in fxmlGetAttr.\n");
 }
 
+// returns 0 if not exists
+int64_t fxmlGetAttrInt(FXMLTag* t, char* name) {
+	char* c;
+	int64_t i;
+	
+	c = fxmlGetAttr(t, name);
+	if(!c) return 0;
+	
+	i = strtoll(c, NULL, 10);
+	free(c);
+	
+	return i;
+}
+
+// returns 0.0 if not exists
+double fxmlGetAttrDouble(FXMLTag* t, char* name) {
+	char* c;
+	double d;
+	
+	c = fxmlGetAttr(t, name);
+	if(!c) return 0.0;
+	
+	d = strtod(c, NULL, 10);
+	free(c);
+	
+	return d;
+}
+
 
 // fetches first child tag of any name
 FXMLTag* fxmlTagGetFirstChild(FXMLTag* t) {
@@ -414,7 +442,7 @@ FXMLTag* fxmlTagNextSibling(FXMLTag* t) {
 }
 
 
-//fetches the first child with the specified name, or null if it doesn't exist.
+//fetches the next sibling with the specified name, or null if it doesn't exist.
 // may be expensive as it walks the xml tree
 FXMLTag* fxmlTagFindNextSibling(FXMLTag* t, char* name) {
 	FXMLTag* c, *o;
@@ -430,6 +458,55 @@ FXMLTag* fxmlTagFindNextSibling(FXMLTag* t, char* name) {
 
 	return c;
 }
+
+
+static int strInArray(char* test, char** array) {
+	char** ar = array;
+	
+	while(*ar) {
+		if(0 == strcmp(test, *ar)) return 0;
+	}
+	
+	return 1;
+}
+
+
+//fetches the first child with any of the specified names, or null if it doesn't exist.
+// may be expensive as it walks the xml tree
+FXMLTag* fxmlTagFindFirstChildArray(FXMLTag* t, char** names) {
+	FXMLTag* c, *o;
+	
+	c = fxmlTagGetFirstChild(t);
+	
+	while(c && 0 != strInArray(c->name, names)) {
+		
+		o = c;
+		c = fxmlTagNextSibling(c);
+		fxmlTagDestroy(o);
+		free(o);
+	}
+
+	return c;
+}
+
+//fetches the next sibling with any of the specified names, or null if it doesn't exist.
+// may be expensive as it walks the xml tree
+FXMLTag* fxmlTagFindNextSiblingArray(FXMLTag* t, char** names) {
+	FXMLTag* c, *o;
+	
+	c = t;
+	
+	while(c && 0 != strInArray(c->name, names)) {
+		o = c;
+		c = fxmlTagNextSibling(c);
+		fxmlTagDestroy(o);
+		free(o);
+	}
+
+	return c;
+}
+
+
 
 /////////////////////////
 ///

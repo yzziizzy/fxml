@@ -3,6 +3,8 @@
 #define FXML_H_INCLUDED
 
 
+#include <stdint.h>
+
 
 //#define dbg_printf(fmt, ...) 
 #define dbg_printf(fmt, ...) printf("DBG: " fmt "\n",  ##__VA_ARGS__);
@@ -53,6 +55,10 @@ char* fxmlGetTextContents(FXMLTag* t, size_t* len);
 
 // fetches a dup'ed and decoded copy of a certain attribute's value, or null if nonexistent.
 char* fxmlGetAttr(FXMLTag* t, char* name);
+// returns 0 if not exists
+int64_t fxmlGetAttrInt(FXMLTag* t, char* name);
+// returns 0.0 if not exist
+double fxmlGetAttrDouble(FXMLTag* t, char* name);
 
 // ffirst child of any name, or null if none.
 FXMLTag* fxmlTagGetFirstChild(FXMLTag* t);
@@ -66,7 +72,11 @@ FXMLTag* fxmlTagNextSibling(FXMLTag* t);
 // next sibling of a certain name, or null if none left. cannot be called on the root node.
 FXMLTag* fxmlTagFindNextSibling(FXMLTag* t, char* name);
 
+//fetches the first child with any of the specified names, or null if it doesn't exist.
+FXMLTag* fxmlTagFindFirstChildArray(FXMLTag* t, char** names);
 
+//fetches the next sibling with any of the specified names, or null if it doesn't exist.
+FXMLTag* fxmlTagFindNextSiblingArray(FXMLTag* t, char** names);
 
 
 // below are tag-based functions, mostly for internal use
