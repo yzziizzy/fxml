@@ -537,8 +537,10 @@ int fxmlSkipTagDecl(char** start) {
 		return 1;
 	}
 	
+	printf("%.5s\n", s);
 	// all other tags close semi-normally
 	s = strchr(s, '>');
+	printf("%.5s\n", s);
 	if(!s) {
 		fprintf(stderr, "FXML: unexpected end of input in fxmlSkipTagDecl.\n");
 		*start = NULL;
@@ -546,6 +548,7 @@ int fxmlSkipTagDecl(char** start) {
 	}
 	
 	*start = s + 1;
+	printf("%.5s\n", *start);
 	
 	switch(type) {
 		case FXML_TAG_NORMAL:
@@ -611,14 +614,17 @@ void fxmlSkipTag(char** start) {
 
 	// skip the opening tag
 	fxmlSkipTagDecl(&s);
-
+	
+	printf("%.5s\n", s);
+	
 	// skip all the children, recursively
 	while(*s) { // BUG need better bounds checking
 		int ctype;
 		
+	printf("%.5s\n", s);
 		
 		fxmlFindNextTagStart(&s);
-		//dbg_printf("skip %.5s", s);
+		dbg_printf("skip %.5s", s);
 		// found it
 		if(fxmlIsCloseTagFor(s, name)) {
 			fxmlSkipTagDecl(&s);
@@ -627,6 +633,8 @@ void fxmlSkipTag(char** start) {
 			return;
 		}
 		
+		(*s)++;
+		//int v = *((int*)(0));
 		// keep going; more children to skip
 	}
 	
@@ -723,7 +731,7 @@ FXMLTag* fxmlLoadString(char* source, size_t len) {
 
 
 
-char* readFile(char* path, size_t* srcLen) {
+static char* read_file(char* path, size_t* srcLen) {
 	
 	int fsize;
 	char* contents;
@@ -760,7 +768,7 @@ FXMLTag* fxmlLoadFile(char* path) {
 	char* source;
 	size_t len;
 	
-	source = readFile(path, &len);
+	source = read_file(path, &len);
 	
 	return fxmlLoadString(source, len);
 }
