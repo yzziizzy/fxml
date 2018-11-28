@@ -12,6 +12,13 @@
 	<child>
 		toys <!-- comments in  text --> sdfsdfs
 		<![CDATA[>ad<asd>as\saa<asd]]>
+		<nest1>
+			<nest2>
+				<nest3>
+					<egg />
+				</nest3>
+			</nest2>
+		</nest1>
 	</child>
 	
 	<!-- more comments -->
@@ -23,6 +30,8 @@
 	<sister name="anna" age="3" height="3'2&quot;">
 		dolls
 	</sister>
+	
+
 	
 	<brother name="joe">
 		legos

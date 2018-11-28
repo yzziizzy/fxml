@@ -52,7 +52,7 @@ FXMLTag* fxmlTagCreate(char* start, FXMLTag* parent) {
 	return t;
 }
 
-FXMLTag* fxmlTagDestroy(FXMLTag* t) {
+void fxmlTagDestroy(FXMLTag* t) {
 	if(!t) return;
 	
 	if(t->name) free(t->name);
@@ -70,8 +70,10 @@ int fxmlTagParseName(FXMLTag* t) {
 		return 1;
 	}
 	
+	//printf("h> %.5s\n", s);
 	s++; // skip bracket
-
+	//printf("i> %.5s\n", s);
+	
 	// TODO: skip shitespace?
 	
 	end = strpbrk(s, " \n\r\t\v>");
@@ -84,7 +86,7 @@ int fxmlTagParseName(FXMLTag* t) {
 	t->name_len = end - s; // TODO check for off-by-one
 	t->name = strndup(s, t->name_len);
 	
-	//dbg_printf("tag name: '%s'\n", t->name);
+//	dbg_printf("tag name: '%s'\n", t->name);
 	
 	// might as well
 	fxmlTagFindStartOfContent(t);
@@ -98,7 +100,7 @@ void fxmlTagFindStartOfContent(FXMLTag* t) {
 	// find end of opening tag
 	s = strchr(t->start, '>'); // BUG bounds checking
 	if(!s) {
-		fprintf(stderr, "FXML: unexpected end of input in fxmlFindEndOfContent.\n");
+		fprintf(stderr, "FXML: unexpected end of input in fxmlFindStartOfContent.\n");
 		return;
 	}
 	
@@ -112,36 +114,26 @@ void fxmlTagFindStartOfContent(FXMLTag* t) {
 
 void fxmlTagFindEndOfContent(FXMLTag* t) {
 	char* s = t->content_start;
-	
+//	printf("\nm> '%.6s'\n", s);
 	if(t->fully_parsed) return;
 	
 	fxmlTagParseName(t);
 	
 	if(t->self_terminating) return;
 	
-	// skip all the children, recursively
-	while(*s) { // BUG need better bounds checking
-		int ctype;
-		
-		fxmlFindNextTagStart(&s);
-		
-		// found it
-		if(fxmlIsCloseTagFor(s, t->name)) {
-			t->content_end = s;
-			
-			fxmlSkipTagDecl(&s);
-			t->end = s;
-			
-			t->fully_parsed = 1;
-			
-			return;
-		}
-		//fxmlSkipTagDecl(&s);
-		fxmlSkipTag(&s);
-		// keep going; more children to skip
-	}
 	
-	fprintf(stderr, "FXML: unexpected end of input in fxmlTagFindEndOfContent.\n");
+// 		namelen = fxmlGetTagNameLen(s + 1);
+// 	name = s + 1;
+// 	printf("\na> '%.*s'(%d)\n", namelen, tname, namelen);
+	
+	
+	fxmlFindEndOfContent(&s, t->name, t->name_len);
+	t->content_end = s;
+	
+	fxmlSkipTagDecl(&s);
+	t->end = s;
+	
+	t->fully_parsed = 1;
 }
 
 // decodes and entity, advancing both input and output pointers.
@@ -366,7 +358,7 @@ FXMLTag* fxmlTagGetFirstChild(FXMLTag* t) {
 	s = t->content_start;
 	
 	fxmlFindNextNormalTagStart(&s);
-	if(fxmlIsCloseTagFor(s, t->name)) {
+	if(fxmlIsCloseTagFor(s, t->name, -1)) {
 		return NULL;
 	}
 	
@@ -404,7 +396,7 @@ FXMLTag* fxmlTagNextSibling(FXMLTag* t) {
 	}
 	
 	fxmlFindNextNormalTagStart(&s);
-	if(fxmlIsCloseTagFor(s, t->parent->name)) {
+	if(fxmlIsCloseTagFor(s, t->parent->name, -1)) {
 		return NULL;
 	}
 	
@@ -523,7 +515,7 @@ int fxmlSkipTagDecl(char** start) {
 	char* s;
 	char* endstr;
 	int type;
-	
+	//printf("\ns> %.5s\n", *start);
 	type = fxmlProbeTagType(*start);
 	
 	if(type == FXML_TAG_CDATA || type == FXML_TAG_COMMENT) {
@@ -537,10 +529,10 @@ int fxmlSkipTagDecl(char** start) {
 		return 1;
 	}
 	
-	printf("%.5s\n", s);
+// 	//printf("\nt> %.5s\n", *start);
 	// all other tags close semi-normally
-	s = strchr(s, '>');
-	printf("%.5s\n", s);
+	s = strchr(*start, '>');
+//	printf("\nu> %.5s\n", s);
 	if(!s) {
 		fprintf(stderr, "FXML: unexpected end of input in fxmlSkipTagDecl.\n");
 		*start = NULL;
@@ -548,7 +540,7 @@ int fxmlSkipTagDecl(char** start) {
 	}
 	
 	*start = s + 1;
-	printf("%.5s\n", *start);
+//	printf("\nv> %.5s\n", *start);
 	
 	switch(type) {
 		case FXML_TAG_NORMAL:
@@ -566,14 +558,56 @@ int fxmlSkipTagDecl(char** start) {
 	}
 }
 
+// returns the length of the tag name 
+int fxmlGetTagNameLen(char* start) {
+	char* e = strpbrk(start, " \n\r\t\v=>");
+	return e - start;
+}
 
+
+// expects a pointer to the first char after the opening tag
+void fxmlFindEndOfContent(char** start, char* name, int namelen) {
+	char* s = *start;
+	
+	// skip all the children, recursively
+	while(*s) { // BUG need better bounds checking
+		int ctype;
+		
+		
+		fxmlFindNextTagStart(&s);
+	//printf("\nb> %.8s, '%.*s'(%d)\n", s, namelen, name, namelen);
+	
+		//	dbg_printf("skip %.5s", s);
+		// found the closing tag
+		if(fxmlIsCloseTagFor(s, name, namelen)) {
+			*start = s;
+	//		printf("found end tag for '%.*s'\n", namelen, name);
+			//dbg_printf("skip %.5s", s);
+			return;
+		}
+		
+		// recurse
+		fxmlSkipTag(&s);
+		
+		//int v = *((int*)(0));
+		// keep going; more children to skip
+	}
+	
+	fprintf(stderr, "FXML: unexpected end of input in fxmlFindEndOfContent.\n");
+}
+
+
+// assumes input points to the opening <
 // nasty recursive tag skipping fn. don't blow out the stack.
 void fxmlSkipTag(char** start) {
 	char* name;
+	int namelen;
+	
 	char* s = *start;
 	int type;
 	char* endstr;
 	
+	//printf("fxmlSkipTag\n");
 	type = fxmlProbeTagType(*start);
 	
 	// easy to skip the entire tag for these
@@ -610,39 +644,27 @@ void fxmlSkipTag(char** start) {
 		return;
 	}
 	
+	namelen = fxmlGetTagNameLen(s + 1);
+	name = s + 1;
+	//printf("\na> '%.*s'(%d)\n", namelen, name, namelen);
 	
-
 	// skip the opening tag
-	fxmlSkipTagDecl(&s);
-	
-	printf("%.5s\n", s);
-	
-	// skip all the children, recursively
-	while(*s) { // BUG need better bounds checking
-		int ctype;
-		
-	printf("%.5s\n", s);
-		
-		fxmlFindNextTagStart(&s);
-		dbg_printf("skip %.5s", s);
-		// found it
-		if(fxmlIsCloseTagFor(s, name)) {
-			fxmlSkipTagDecl(&s);
-			*start = s;
-			//dbg_printf("skip %.5s", s);
-			return;
-		}
-		
-		(*s)++;
-		//int v = *((int*)(0));
-		// keep going; more children to skip
+	int selfTerm = fxmlSkipTagDecl(&s);
+	if(selfTerm) {
+		*start = s;
+		return;
 	}
 	
-	fprintf(stderr, "FXML: unexpected end of input in fxmlSkipTag.\n");
+	fxmlFindEndOfContent(&s, name, namelen);
+	
+	// skip closing tag
+	fxmlSkipTagDecl(&s);
+	
+	*start = s;
 }
 
 // checks if a given tag is a valid closing tag for a named normal xml tag
-int fxmlIsCloseTagFor(char* s, char* name) {
+int fxmlIsCloseTagFor(char* s, char* name, int namelen) {
 	if(*s == 0) {
 		fprintf(stderr, "FXML: unexpected end of input in fxmlIsCloseTagFor.\n");
 		return 0;
@@ -651,7 +673,11 @@ int fxmlIsCloseTagFor(char* s, char* name) {
 	// not a closing tag at all
 	if(*(s+1) != '/') return 0;
 
-	if(strncmp(s+2, name, strlen(name)) == 0) return 1;
+	int closelen = fxmlGetTagNameLen(s+2);
+	//printf("closelen %d %d \n", closelen, namelen);
+	if(closelen != namelen) return 0;
+	
+	if(strncmp(s+2, name, namelen) == 0) return 1;
 	
 	return 0;
 }
@@ -663,7 +689,8 @@ void fxmlFindNextTagStart(char** start) {
 	s = strchr(*start, '<');
 	if(s == NULL) {
 		fprintf(stderr, "FXML: unexpected end of input looking for next tag start.\n");
-		s += strlen(s);
+		int i = *((int*)0);
+		s = start + strlen(*start);
 	}
 	
 	*start = s;
@@ -716,17 +743,21 @@ char* fxmlFindRoot(char* source) {
 
 
 // len is ignored for now. source must be null-terminated
-FXMLTag* fxmlLoadString(char* source, size_t len) {
+FXMLFile* fxmlLoadString(char* source, size_t len) {
 	
-	FXMLTag* t;
+	FXMLFile* f;
 	char* start;
+	
+	f = calloc(1, sizeof(*f));
+	f->source = source;
+	f->slen = len;
 	
 	// ignore any leading whitespace, declarations, doctypes, or any other bullshit.
 	start = fxmlFindRoot(source);
 	
-	t = fxmlTagCreate(start, NULL);
+	f->root = fxmlTagCreate(start, NULL);
 	
-	return t;
+	return f;
 }
 
 
@@ -748,22 +779,21 @@ static char* read_file(char* path, size_t* srcLen) {
 	fsize = ftell(f);
 	rewind(f);
 	
-	contents = (char*)malloc(fsize + 2);
+	contents = (char*)malloc(fsize + 1);
 	
-	fread(contents+1, sizeof(char), fsize, f);
-	contents[0] = '\n';
+	fread(contents, sizeof(char), fsize, f);
 	contents[fsize] = 0;
 	
 	fclose(f);
 	
-	if(srcLen) *srcLen = fsize + 1;
+	if(srcLen) *srcLen = fsize;
 	
 	return contents;
 }
 
 
 
-FXMLTag* fxmlLoadFile(char* path) {
+FXMLFile* fxmlLoadFile(char* path) {
 	
 	char* source;
 	size_t len;

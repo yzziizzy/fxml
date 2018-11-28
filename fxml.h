@@ -28,7 +28,7 @@ enum {
 typedef struct FXMLTag {
 	struct FXMLTag* parent; // optional
 	
-	char* start; // te opening tag <
+	char* start; // the opening tag <
 	char* name;
 	size_t name_len;
 	char* content_start; // first char after opening tag >
@@ -45,10 +45,16 @@ typedef struct FXMLTag {
 } FXMLTag;
 
 
+typedef struct FXMLFile {
+	char* source;
+	size_t slen;
+	FXMLTag* root;
+} FXMLFile;
+
 
 // main API
-FXMLTag* fxmlLoadString(char* source, size_t len);
-FXMLTag* fxmlLoadFile(char* path);
+FXMLFile* fxmlLoadString(char* source, size_t len);
+FXMLFile* fxmlLoadFile(char* path);
 
 // gets a dup'ed, decoded string of all top-level text content (including CDATA) concatenated together
 char* fxmlGetTextContents(FXMLTag* t, size_t* len);
@@ -88,7 +94,7 @@ void fxmlTagInit(FXMLTag* t, char* start, FXMLTag* parent);
 // dynamic allocator, calls TagInit
 FXMLTag* fxmlTagCreate(char* start, FXMLTag* parent);
 // destructor. need to free the struct itself afterward
-FXMLTag* fxmlTagDestroy(FXMLTag* t);
+void fxmlTagDestroy(FXMLTag* t);
 
 // mostly internal use. all have guards to shortcut redundant calls.
 static int fxmlTagParseName(FXMLTag* t);
@@ -99,16 +105,25 @@ void fxmlTagFindEndOfContent(FXMLTag* t);
 
 // below are string-based functions, mostly for internal use.
 
+// returns the length of the tag name 
+int fxmlGetTagNameLen(char* start);
+
+// returns the length of the tag name 
+int fxmlGetTagNameLen(char* start);
+
 // returns an enum, listed above. mostly internal use.
 int fxmlProbeTagType(char* start);
 
 // skips the opening tag of a node or any kind
 int fxmlSkipTagDecl(char** start);
 
+// expects a pointer to the first char after the opening tag
+void fxmlFindEndOfContent(char** start, char* name, int namelen);
+
 // skips an entire node of any kind
 void fxmlSkipTag(char** start);
 
-int fxmlIsCloseTagFor(char* s, char* name);
+int fxmlIsCloseTagFor(char* s, char* name, int namelen);
 
 // finds the next opening tag of any kind
 void fxmlFindNextTagStart(char** start);
