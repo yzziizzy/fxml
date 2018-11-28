@@ -76,7 +76,7 @@ int fxmlTagParseName(FXMLTag* t) {
 	
 	// TODO: skip shitespace?
 	
-	end = strpbrk(s, " \n\r\t\v>");
+	end = strpbrk(s, " \n\r\t\v>/");
 	
 	if(!end) {
 		fprintf(stderr, "FXML: could not find end of tag name.\n");
@@ -106,7 +106,7 @@ void fxmlTagFindStartOfContent(FXMLTag* t) {
 	
 	if(*(s-1) == '/') {
 		t->self_terminating = 1;
-		t->fully_parsed = 1;
+		//t->fully_parsed = 1;
 	}
 
 	t->content_start = s + 1;
@@ -114,24 +114,34 @@ void fxmlTagFindStartOfContent(FXMLTag* t) {
 
 void fxmlTagFindEndOfContent(FXMLTag* t) {
 	char* s = t->content_start;
-//	printf("\nm> '%.6s'\n", s);
+//	printf("\na%d, %p> '%.27s'\n", t->fully_parsed, t->end, t->end);
+	
 	if(t->fully_parsed) return;
+//	printf("\nb> '%.6s'\n", s);
 	
 	fxmlTagParseName(t);
-	
-	if(t->self_terminating) return;
-	
+ printf("\nc> '%.*s'\n", t->name_len, t->name);
+		
+	if(t->self_terminating) {
+		t->content_start = NULL;
+		t->content_end = NULL;
+		
+		s = t->start;
+	//	printf("d> %.5s\n", s);
+	}
+	else {
+		fxmlFindEndOfContent(&s, t->name, t->name_len);
+		t->content_end = s;
+	//	printf("e> %.5s\n", s);
+	}
+ printf("\nd> '%.*s'\n", t->name_len, t->name);	
+	fxmlSkipTagDecl(&s);
+	t->end = s;
+//	printf("f> %.5s\n", s);
 	
 // 		namelen = fxmlGetTagNameLen(s + 1);
 // 	name = s + 1;
 // 	printf("\na> '%.*s'(%d)\n", namelen, tname, namelen);
-	
-	
-	fxmlFindEndOfContent(&s, t->name, t->name_len);
-	t->content_end = s;
-	
-	fxmlSkipTagDecl(&s);
-	t->end = s;
 	
 	t->fully_parsed = 1;
 }
@@ -301,7 +311,7 @@ char* fxmlGetAttr(FXMLTag* t, char* name) {
 		skipWhitespace(&s);
 		
 		// go past the name
-		e = strpbrk(s, " \n\r\t\v=>");
+		e = strpbrk(s, " \n\r\t\v=>/");
 		if(*e == '>') {
 			// no more attributes
 			return NULL;
@@ -368,24 +378,22 @@ FXMLTag* fxmlTagGetFirstChild(FXMLTag* t) {
 //fetches the first child with the specified name, or null if it doesn't exist.
 // may be expensive as it walks the xml tree
 FXMLTag* fxmlTagFindFirstChild(FXMLTag* t, char* name) {
-	FXMLTag* c, *o;
+	FXMLTag* c;
 	
 	c = fxmlTagGetFirstChild(t);
 	
-	while(c && 0 != strcmp(c->name, name)) {
-		
-		o = c;
-		c = fxmlTagNextSibling(c);
-		fxmlTagDestroy(o);
-		free(o);
+	while(c && 0 != strncmp(c->name, name, c->name_len)) {
+		c = fxmlTagNextSibling(c, 1);
 	}
 
 	return c;
 }
 
 // fetches the next sibling, ignoring all contents of this tag and any text between
-FXMLTag* fxmlTagNextSibling(FXMLTag* t) {
+// returns null when there are no more siblings
+FXMLTag* fxmlTagNextSibling(FXMLTag* t, int freePrev) {
 	char* s;
+	FXMLTag* n;
 
 	fxmlTagFindEndOfContent(t);
 	s = t->end;
@@ -396,38 +404,48 @@ FXMLTag* fxmlTagNextSibling(FXMLTag* t) {
 	}
 	
 	fxmlFindNextNormalTagStart(&s);
-	if(fxmlIsCloseTagFor(s, t->parent->name, -1)) {
+	if(fxmlIsCloseTag(s)) { printf("is close tag\n");
+		if(freePrev) {
+			fxmlTagDestroy(t);
+			free(t);
+		}
 		return NULL;
 	}
-	
-	return fxmlTagCreate(s, t);
-	
+	printf("not close tag\n");
+	n = fxmlTagCreate(s, t);
+	if(freePrev) {
+		fxmlTagDestroy(t);
+		free(t);
+	}
+	return n;
 }
 
 
 //fetches the next sibling with the specified name, or null if it doesn't exist.
 // may be expensive as it walks the xml tree
-FXMLTag* fxmlTagFindNextSibling(FXMLTag* t, char* name) {
-	FXMLTag* c, *o;
+FXMLTag* fxmlTagFindNextSibling(FXMLTag* t, char* name, int freePrev) {
+	FXMLTag* c;
 	
-	c = t;
-	
-	while(c && 0 != strcmp(c->name, name)) {
-		o = c;
-		c = fxmlTagNextSibling(c);
-		fxmlTagDestroy(o);
-		free(o);
+	c = fxmlTagNextSibling(t, 0); // TODO: fix possible leak on last item
+//	printf("huh %p %.*s\n", c, c->name_len, c->name);
+	while(c && 0 != strncmp(c->name, name, c->name_len)) {
+		c = fxmlTagNextSibling(c, 1);
+		printf("u> %p\n", c);
 	}
 
+	if(t && freePrev) {
+		fxmlTagDestroy(t);
+		free(t);
+	}
 	return c;
 }
 
 
-static int strInArray(char* test, char** array) {
+static int strInArray(char* test, char** array, int len) {
 	char** ar = array;
 	
 	while(*ar) {
-		if(0 == strcmp(test, *ar)) return 0;
+		if(0 == strncmp(test, *ar, len)) return 0;
 	}
 	
 	return 1;
@@ -437,16 +455,12 @@ static int strInArray(char* test, char** array) {
 //fetches the first child with any of the specified names, or null if it doesn't exist.
 // may be expensive as it walks the xml tree
 FXMLTag* fxmlTagFindFirstChildArray(FXMLTag* t, char** names) {
-	FXMLTag* c, *o;
+	FXMLTag* c;
 	
 	c = fxmlTagGetFirstChild(t);
 	
-	while(c && 0 != strInArray(c->name, names)) {
-		
-		o = c;
-		c = fxmlTagNextSibling(c);
-		fxmlTagDestroy(o);
-		free(o);
+	while(c && 0 != strInArray(c->name, names, c->name_len)) {
+		c = fxmlTagNextSibling(c, 1);
 	}
 
 	return c;
@@ -455,15 +469,12 @@ FXMLTag* fxmlTagFindFirstChildArray(FXMLTag* t, char** names) {
 //fetches the next sibling with any of the specified names, or null if it doesn't exist.
 // may be expensive as it walks the xml tree
 FXMLTag* fxmlTagFindNextSiblingArray(FXMLTag* t, char** names) {
-	FXMLTag* c, *o;
+	FXMLTag* c;
 	
 	c = t;
 	
-	while(c && 0 != strInArray(c->name, names)) {
-		o = c;
-		c = fxmlTagNextSibling(c);
-		fxmlTagDestroy(o);
-		free(o);
+	while(c && 0 != strInArray(c->name, names, c->name_len)) {
+		c = fxmlTagNextSibling(c, 1);
 	}
 
 	return c;
@@ -560,7 +571,7 @@ int fxmlSkipTagDecl(char** start) {
 
 // returns the length of the tag name 
 int fxmlGetTagNameLen(char* start) {
-	char* e = strpbrk(start, " \n\r\t\v=>");
+	char* e = strpbrk(start, " \n\r\t\v=>/");
 	return e - start;
 }
 
@@ -663,6 +674,12 @@ void fxmlSkipTag(char** start) {
 	*start = s;
 }
 
+// expects a pointer to the opening <
+// returns 1 if a given tag is a closing tag
+int fxmlIsCloseTag(char* s) {
+	return *(s+1) == '/';
+}
+	
 // checks if a given tag is a valid closing tag for a named normal xml tag
 int fxmlIsCloseTagFor(char* s, char* name, int namelen) {
 	if(*s == 0) {

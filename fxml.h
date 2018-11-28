@@ -1,4 +1,3 @@
-#pragma once
 #ifndef FXML_H_INCLUDED
 #define FXML_H_INCLUDED
 
@@ -73,10 +72,10 @@ FXMLTag* fxmlTagGetFirstChild(FXMLTag* t);
 FXMLTag* fxmlTagFindFirstChild(FXMLTag* t, char* name);
 
 // next sibling of any name, or null if none left. cannot be called on the root node.
-FXMLTag* fxmlTagNextSibling(FXMLTag* t);
+FXMLTag* fxmlTagNextSibling(FXMLTag* t, int freePrev);
 
 // next sibling of a certain name, or null if none left. cannot be called on the root node.
-FXMLTag* fxmlTagFindNextSibling(FXMLTag* t, char* name);
+FXMLTag* fxmlTagFindNextSibling(FXMLTag* t, char* name, int freePrev);
 
 //fetches the first child with any of the specified names, or null if it doesn't exist.
 FXMLTag* fxmlTagFindFirstChildArray(FXMLTag* t, char** names);
@@ -108,8 +107,9 @@ void fxmlTagFindEndOfContent(FXMLTag* t);
 // returns the length of the tag name 
 int fxmlGetTagNameLen(char* start);
 
-// returns the length of the tag name 
-int fxmlGetTagNameLen(char* start);
+// expects a pointer to the opening <
+// returns 1 if a given tag is a closing tag
+int fxmlIsCloseTag(char* s);
 
 // returns an enum, listed above. mostly internal use.
 int fxmlProbeTagType(char* start);
