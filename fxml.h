@@ -60,6 +60,8 @@ char* fxmlGetTextContents(FXMLTag* t, size_t* len);
 
 // fetches a dup'ed and decoded copy of a certain attribute's value, or null if nonexistent.
 char* fxmlGetAttr(FXMLTag* t, char* name);
+// fetches a dup'ed and decoded copy of a certain attribute's value, sliced, or null if nonexistent.
+char* fxmlGetAttrSlice(FXMLTag* t, char* name, int start, int end);
 // returns 0 if not exists
 int64_t fxmlGetAttrInt(FXMLTag* t, char* name);
 // returns 0.0 if not exist

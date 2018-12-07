@@ -328,6 +328,49 @@ char* fxmlGetAttr(FXMLTag* t, char* name) {
 	fprintf(stderr, "FXML: unexpected end of input in fxmlGetAttr.\n");
 }
 
+// given a tag, return a dup'ed decoded value for an attr, sliced, or null if the attr doesn't exist
+char* fxmlGetAttrSlice(FXMLTag* t, char* name, int start, int end) {
+	
+	char* e;
+	char* s = t->start + t->name_len + 1;
+	
+	while(*s) { 
+		skipWhitespace(&s);
+		
+		// go past the name
+		e = strpbrk(s, " \n\r\t\v=>/");
+		if(*e == '>') {
+			// no more attributes
+			return NULL;
+		}
+		
+		if(0 == strncmp(name, s, e - s)) {
+			// this attr matches
+			
+			// not efficient at all. meh.
+			char* v = extractAttrValue(e);
+			
+			int len = strlen(v);
+			char* out = malloc(len + 1);
+			
+			int _end = end == 0 ? len : (end < 0 ? len + end : (start > end ? start : end));
+			
+			int cpyn = end - start; 
+			
+			strncpy(out, v, cpyn);
+			out[cpyn] = 0;
+			
+			free(v);
+			
+			return out;
+		}
+		
+		s = findNextAttr(e);
+	}
+	
+	fprintf(stderr, "FXML: unexpected end of input in fxmlGetAttr.\n");
+}
+
 // returns 0 if not exists
 int64_t fxmlGetAttrInt(FXMLTag* t, char* name) {
 	char* c;
